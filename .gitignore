@@ -1,0 +1,24 @@
+# --- Rust ---
+/producer-rust/target/
+**/*.rs.bk
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+env/
+venv/
+.pytest_cache/
+
+# --- IDES & OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- Docker & Data ---
+# Si jamais tu stockes des volumes de données en local plus tard
+.docker-data/
