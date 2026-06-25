@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  # Message Broker (Compatible Kafka)
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.5
+    command:
+      - redpanda start
+      - --smp 1
+      - --overprovisioned
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr 0.0.0.0:28082
+      - --advertise-pandaproxy-addr localhost:28082
+    ports:
+      - "19092:19092"
+      - "28082:28082"
+      - "8081:8081"
+      - "9644:9644"
+
+  # Interface Web pour voir nos messages Kafka en temps réel
+  console:
+    image: docker.redpanda.com/redpandadata/console:v2.4.3
+    entrypoint: /bin/sh
+    command: -c "echo \"$$CONSOLE_CONFIG_FILE\" > /tmp/config.yml && /app/console"
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda:9092"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redpanda
