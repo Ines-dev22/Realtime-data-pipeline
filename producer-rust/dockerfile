@@ -1,0 +1,11 @@
+FROM rust:1.96.0-slim-bookworm AS builder
+RUN apt-get update && apt-get install -y cmake build-essential libcurl4-openssl-dev pkg-config
+WORKDIR /app
+COPY . .
+RUN cargo build --release
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y libcurl4-openssl-dev ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=builder /app/target/release/producer-rust /app/producer-rust
+CMD ["./producer-rust"]

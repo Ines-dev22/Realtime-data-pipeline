@@ -32,3 +32,38 @@ services:
       - "8080:8080"
     depends_on:
       - redpanda
+
+# Notre producteur Rust conteneurisé
+  producer:
+    build: ./producer-rust
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+    depends_on:
+      - redpanda
+
+  # Notre consommateur Python + DuckDB conteneurisé
+  consumer:
+    build: ./consumer-python
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+    volumes:
+      - shared-data:/app/data
+    depends_on:
+      - redpanda
+
+# Outil de Business Intelligence pour le Dashboard
+  metabase:
+    image: metabase/metabase:v0.49.3
+    ports:
+      - "3000:3000"
+    volumes:
+      - shared-data:/data
+      - ./metabase-plugins:/plugins
+    environment:
+      - MB_PLUGINS_DIR=/plugins
+    depends_on:
+      - consumer
+
+volumes:
+  shared-data:
+

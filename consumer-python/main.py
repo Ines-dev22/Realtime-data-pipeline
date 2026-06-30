@@ -2,9 +2,17 @@ import json
 import os
 from confluent_kafka import Consumer, KafkaError
 import pandas as pd
+import duckdb
 
 def main():
-    # Configuration du consommateur
+    # Configuration du chemin de la base DuckDB (dans le volume partagé Docker)
+    db_path = "/app/data/ecommerce_analytics.db"
+    
+    # Initialisation de la connexion DuckDB
+    con = duckdb.connect(db_path)
+    print(f"Base DuckDB initialisée à l'emplacement : {db_path}")
+    
+    # Configuration du consommateur Kafka
     broker = os.getenv("KAFKA_BROKERS", "localhost:19092")
     conf = {
         'bootstrap.servers': broker,
@@ -18,7 +26,7 @@ def main():
     print(f"🚀 Consommateur Python démarré. Écoute sur le broker : {broker}")
 
     buffer = []
-    batch_size = 5  # On traite les données par paquets de 5 messages
+    batch_size = 10  # On traite les données par paquets de 10 messages
 
     try:
         while True:
@@ -40,14 +48,20 @@ def main():
             if len(buffer) >= batch_size:
                 df = pd.DataFrame(buffer)
                 
-                # --- TRAITEMENT / ANALYSE (Exemple simple) ---
-                # On calcule le montant total de chaque ligne (prix * quantité)
+                # Transformation rapide : calcul du montant total
                 df['total_amount'] = df['price'] * df['quantity']
+                # Conversion du timestamp en type datetime pour DuckDB
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
                 
-                print("\n📊 --- Nouveau Batch Traité par Pandas ---")
-                print(df[['order_id', 'product_id', 'total_amount']])
-                print("-------------------------------------------\n")
+                # Insertion directe du DataFrame Pandas dans DuckDB
+                # 'append=True' crée la table si elle n'existe pas, sinon ajoute les lignes
+                con.execute("INSERT INTO orders SELECT * FROM df") if con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='orders'").fetchone() else con.execute("CREATE TABLE orders AS SELECT * FROM df")
                 
+                # Petit log de contrôle
+                row_count = con.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
+                total_revenue = con.execute("SELECT SUM(total_amount) FROM orders").fetchone()[0]
+                
+                print(f"📊 [DuckDB] Batch inséré. Total lignes en base : {row_count} | Chiffre d'Affaires Cumulé : {total_revenue:.2f}€")
                 # On vide le buffer pour le prochain batch
                 buffer = []
 
